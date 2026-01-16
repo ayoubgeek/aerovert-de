@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # --------------------------------------------------------------------------
+  # 1. DATABASE (PostgreSQL + PostGIS)
+  # --------------------------------------------------------------------------
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: aerovert-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: aerovert
+    ports:
+      - "5432:5432" # Exposed for local tools (DBeaver, TablePlus)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------------------------
+  # 2. API (FastAPI + ETL)
+  # --------------------------------------------------------------------------
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: aerovert-api
+    # Mount source code for hot-reloading during development
+    volumes:
+      - ./apps/api:/app
+      # CRITICAL: Mount the data folder so the container can read the Excel files
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/aerovert
+    depends_on:
+      db:
+        condition: service_healthy
+    # "uv run" uses the virtual env managed by uv
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # --------------------------------------------------------------------------
+  # 3. FRONTEND (Next.js)
+  # --------------------------------------------------------------------------
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: aerovert-web
+    volumes:
+      - ./apps/web:/app
+      # Avoid overwriting node_modules inside container with local host empty folder
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      # URL for server-side requests (container to container)
+      INTERNAL_API_URL: http://api:8000
+      # URL for client-side requests (browser to localhost)
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
+    command: pnpm dev
+
+volumes:
+  postgres_data:

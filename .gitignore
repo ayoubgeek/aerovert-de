@@ -1,0 +1,83 @@
+# ==============================================================================
+# AEROVERT-DE GITIGNORE
+# Maintained by: Data Engineering Team
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. OS & Editor Junk
+# ------------------------------------------------------------------------------
+# Mac metadata - never commit these
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code - team settings are okay, but local user settings are not
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ------------------------------------------------------------------------------
+# 2. Python (Backend/ETL)
+# ------------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments (we use uv, but standard venv might exist)
+.venv
+venv/
+env/
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Type Checking & Testing
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ------------------------------------------------------------------------------
+# 3. Node.js (Frontend)
+# ------------------------------------------------------------------------------
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-debug.log*
+
+# Next.js build output
+.next/
+out/
+
+# ------------------------------------------------------------------------------
+# 4. Data & Secrets (CRITICAL)
+# ------------------------------------------------------------------------------
+# Ignore all raw data files to keep repo light (Excel files are binary blobs)
+# We deliberately keep .gitkeep files so the folder structure persists
+data/raw/**/*.xls
+data/raw/**/*.xlsx
+data/raw/**/*.csv
+data/processed/*
+!data/raw/**/.gitkeep
+!data/processed/.gitkeep
+
+# Environment Variables - NEVER commit keys
+.env
+.env.local
+.env.*.local
+
+# Docker volumes (if mapped locally)
+.docker_data/
+postgres_data/
+
+# ------------------------------------------------------------------------------
+# 5. Local Infrastructure
+# ------------------------------------------------------------------------------
+# Terraform local states (if we add IaC later)
+*.tfstate
+*.tfstate.backup
