@@ -19,6 +19,7 @@ dependencies = [
 ]
 
 [tool.uv]
+# This replaces the deprecated dev-dependencies
 dev-dependencies = [
     "pytest>=8.0.0",
     "httpx>=0.26.0",
@@ -30,8 +31,14 @@ dev-dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# ==============================================================================
+# CRITICAL FIX: Explicitly tell hatchling where the source code is
+# ==============================================================================
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
 # ------------------------------------------------------------------------------
-# Tool Configurations (Keep the repo clean)
+# Tool Configurations
 # ------------------------------------------------------------------------------
 [tool.ruff]
 line-length = 88
