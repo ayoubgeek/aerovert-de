@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # --------------------------------------------------------------------------
   # 1. DATABASE (PostgreSQL + PostGIS)
@@ -66,7 +64,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     depends_on:
       - api
-    command: pnpm dev
+    command: npm run dev  # <--- FIXED: Must match the Dockerfile (npm, not pnpm)
 
 volumes:
   postgres_data:

@@ -5,6 +5,7 @@ description = "Backend API and ETL pipeline for Aerovert-DE"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "xlrd>=2.0.1",  # <--- ADD THIS LINE
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
     "pydantic>=2.6.0",
