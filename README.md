@@ -1,62 +1,55 @@
-# Aerovert-DE 🇩🇪✈️
+# ✈️ AEROVERT | Strategic Airspace Intelligence
 
-**The Vertical Conflict: Mapping the Collision Course of Germany’s Renewable Energy and Airspace Safety.**
+> **A Next-Generation Geospatial Intelligence Platform for VFR Aviation Safety.**
+> *Analyzing airspace saturation, obstacle hazards, and compliance metrics in real-time.*
 
-Aerovert-DE is a geospatial intelligence platform designed to ingest, parse, and visualize temporary vertical obstacles (wind turbines, cranes, masts) in German airspace. It processes raw monthly NOTAM (Notice to Air Missions) data to provide an interactive collision risk map.
+![Dashboard Preview](https://github.com/ayoubgeek/aerovert-de/assets/placeholder-image) ## 🚀 The Mission
+Visual Flight Rules (VFR) pilots and Flight Operations Officers often rely on static charts that are updated only once a year. **Aerovert** bridges the gap by visualizing dynamic NOTAM data (Notices to Air Missions) to identify temporary hazards like cranes, unlit wind turbines, and airspace restrictions.
 
-## 🏗 Architecture
+## ⚡ Core Capabilities
 
-**Option B: Portfolio + Production Stack**
+### 1. **"The Kill Zone" Matrix** 🎯
+A scatter analysis correlating **Obstacle Type** vs. **Altitude**. This instantly identifies high-risk outliers—specifically **Unlit Wind Turbines** penetrating the VFR Cruise Layer (1,000ft - 2,000ft).
 
-* **Backend:** Python 3.12, FastAPI, SQLAlchemy (Async), Pydantic
-* **ETL Pipeline:** Pandas (Excel Ingestion) + Regex Parsing
-* **Database:** PostgreSQL 16 + PostGIS (Spatial Indexing)
-* **Frontend:** Next.js 14 (App Router), TypeScript, MapLibre GL
-* **Infrastructure:** Docker Compose, Makefile automation
+### 2. **Safety Compliance Engine** 🛡️
+An automated scoring system that scans the entire German airspace (EDWW, EDGG, EDMM) to calculate a real-time **Safety Compliance Rate** based on the ratio of functional vs. defective lighting systems.
 
-## 🚀 Quick Start
+### 3. **VFR "Wall" Analysis** 🧱
+A vertical density profile that visualizes airspace saturation. It answers the question: *"Is the airspace physically clogged at the altitude where small aircraft need to fly?"*
 
-### Prerequisites
-* Docker & Docker Compose
-* Make (optional, but recommended)
+---
 
-### Running the App
-1.  **Start Services:**
-    ```bash
-    make up
-    ```
-2.  **Access:**
-    * **Web App:** [http://localhost:3000](http://localhost:3000)
-    * **API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-    * **Database:** Port `5432` (User: `postgres`, Pass: `password`)
+## 🛠️ Tech Stack
 
-3.  **Stop Services:**
-    ```bash
-    make down
-    ```
+* **Core:** [Next.js 14](https://nextjs.org/) (App Router, Server Components)
+* **Language:** [TypeScript](https://www.typescriptlang.org/) (Strict Mode)
+* **Visualization:** [Recharts](https://recharts.org/) (Composed Charts, Custom Tooltips)
+* **Mapping:** [Leaflet](https://leafletjs.com/) (Interactive Geospatial Layers)
+* **Styling:** [Tailwind CSS](https://tailwindcss.com/) (Dark Mode, Glassmorphism)
+* **State:** React Context API (Global Filter State Management)
 
-## 📂 Directory Structure
+---
 
-```text
-aerovert-de/
-├── apps/
-│   ├── api/          # FastAPI Backend + ETL logic
-│   └── web/          # Next.js Frontend
-├── data/
-│   ├── raw/          # Drop monthly XLS files here (e.g., data/raw/2025/EDGG/)
-│   └── processed/    # Debug output for parsing logic
-├── infra/            # Docker configurations
-└── docker-compose.yml
-```
+## 🧠 Key Architectural Decisions
 
-## 🛠 workflows
-Ingest Data: Place .xls files in data/raw/{YEAR}/{FIR}/ and trigger the ETL endpoint.
-Parsing Logic: Located in apps/api/app/etl/parsers.
+* **Context-Driven Filtering:** A global `ObstacleContext` manages state across the Sidebar, Map, and Dashboard. Toggling a filter (e.g., "Hide Wind Turbines") instantly recalculates the Compliance Score and Scatter Matrix.
+* **Performance Optimization:** Large datasets (GeoJSON) are memoized using `useMemo` hooks to prevent unnecessary re-renders of heavy chart components.
+* **Data Hygiene:** Strict filtering logic removes "Ghost Data" (e.g., generic `FL 999` placeholders) to ensure analytics only reflect physical reality.
 
-**Instruction:**
-1.  Save the file.
-2.  **Run the following Git commands** to save our progress:
+---
 
-```bash
-git add .
-git commit -m "build: add root configuration (docker, makefile, gitignore)"
+## 📸 Gallery
+
+| **Strategic Dashboard** | **Map Intelligence** |
+|:---:|:---:|
+| *Real-time analytics & Kill Zone Matrix* | *Geospatial visualization of unlit hazards* |
+| [Add Screenshot] | [Add Screenshot] |
+
+---
+
+## 👨‍💻 Author
+
+**Ayoub El Hajji** *Data Engineering Student @ ENSAM Casablanca* *Specializing in Aviation Analytics & Geospatial Data Systems.*
+
+---
+*© 2026 Aerovert Project. Built for educational purposes.*

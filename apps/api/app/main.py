@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, desc, case
 from geoalchemy2.shape import to_shape
 
 # Keep your existing imports
@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# --- CORS FIX (The "Nuclear" Option) ---
-# We use ["*"] to allow ANY origin. This eliminates the "Access Blocked" error.
+# --- CORS FIX ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -37,7 +36,7 @@ def read_root():
 async def get_obstacles(db: AsyncSession = Depends(get_db)):
     logger.info("Fetching expert obstacles from DB...")
     
-    # 1. Fetch from DB
+    # Fetch all obstacles
     result = await db.execute(select(ObstacleParsed))
     obstacles = result.scalars().all()
     
@@ -47,11 +46,9 @@ async def get_obstacles(db: AsyncSession = Depends(get_db)):
     
     for i, obs in enumerate(obstacles):
         try:
-            # Skip records without geometry
             if obs.geom is None:
                 continue
 
-            # Convert DB geometry to Shapely point
             point = to_shape(obs.geom)
             
             features.append({
@@ -83,14 +80,54 @@ async def get_obstacles(db: AsyncSession = Depends(get_db)):
         "features": features
     }
 
-# --- ADDED THIS BACK FOR THE DASHBOARD COUNTERS ---
 @app.get("/stats")
 async def get_stats(db: AsyncSession = Depends(get_db)):
     """
-    Get count of obstacles by type for the dashboard sidebar.
+    Analytics Engine: Returns data for the Dashboard charts.
     """
-    result = await db.execute(
+    
+    # 1. Total Count
+    total_query = await db.execute(select(func.count(ObstacleParsed.id)))
+    total_count = total_query.scalar()
+
+    # 2. Ghost Hazards (Type Breakdown)
+    type_query = await db.execute(
         select(ObstacleParsed.obstacle_type, func.count(ObstacleParsed.id))
         .group_by(ObstacleParsed.obstacle_type)
     )
-    return {row[0]: row[1] for row in result.all()}
+    by_type = {row[0]: row[1] for row in type_query.all()}
+
+    # 3. Regional Saturation (Top 5 FIRs)
+    fir_query = await db.execute(
+        select(ObstacleParsed.fir, func.count(ObstacleParsed.id))
+        .where(ObstacleParsed.fir.isnot(None))
+        .group_by(ObstacleParsed.fir)
+        .order_by(desc(func.count(ObstacleParsed.id)))
+        .limit(5)
+    )
+    by_fir = [{"name": row[0], "value": row[1]} for row in fir_query.all()]
+
+    # 4. Vertical Conflict (Altitude Distribution)
+    # We categorize into 3 safety zones:
+    # - Low Level (< 500ft): VFR Traffic Pattern risk
+    # - Mid Level (500-2000ft): Cruise risk
+    # - High Level (> 2000ft): Major vertical structures
+    vertical_query = await db.execute(
+        select(
+            case(
+                (ObstacleParsed.max_fl < 5, "Low (<500ft)"),
+                (ObstacleParsed.max_fl.between(5, 20), "Mid (500-2k ft)"),
+                else_="High (>2k ft)"
+            ).label("altitude_zone"),
+            func.count(ObstacleParsed.id)
+        )
+        .group_by("altitude_zone")
+    )
+    vertical_data = {row[0]: row[1] for row in vertical_query.all()}
+
+    return {
+        "total": total_count,
+        "by_type": by_type,
+        "by_fir": by_fir,
+        "vertical": vertical_data
+    }
