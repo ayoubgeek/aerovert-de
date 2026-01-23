@@ -148,7 +148,7 @@ export default function DashboardPage() {
   const freshnessCount = useMemo(() => {
     if (!filteredData) return 0;
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 600);
     
     return filteredData.features.filter(f => {
       if (!f.properties.start_date) return false;
