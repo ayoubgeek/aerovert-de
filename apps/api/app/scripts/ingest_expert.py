@@ -171,10 +171,10 @@ async def save_to_db():
     engine = create_async_engine(DB_URL, echo=False)
     async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
-    print("♻️  Resetting database schema...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    print("♻️  Skipping schema reset (Alembic handled it)...")
+    # async with engine.begin() as conn:
+    #     await conn.run_sync(Base.metadata.drop_all)
+    #     await conn.run_sync(Base.metadata.create_all)
 
     all_obstacles = []
     search_path = os.path.join(DATA_ROOT, "**", "*.xls*")
