@@ -195,25 +195,41 @@ async def save_to_db():
 
     async with async_session() as session:
         count = 0
-        for obs in unique_obs:
-            db_obj = ObstacleParsed(
-                notam_id=obs['notam_id'],
-                fir=obs['fir'],
-                obstacle_type=obs['obstacle_type'],
-                lat=obs['lat'],
-                lon=obs['lon'],
-                min_fl=obs['min_fl'],
-                max_fl=obs['max_fl'],
-                radius_nm=obs['radius_nm'],
-                start_date=obs['start_date'],
-                end_date=obs['end_date'],
-                full_text=obs['full_text'],
-                geom=WKTElement(f"POINT({obs['lon']} {obs['lat']})", srid=4326)
-            )
-            session.add(db_obj)
-            count += 1
+        # Batch processing
+        batch_size = 500
+        for i in range(0, len(unique_obs), batch_size):
+            batch = list(unique_obs)[i:i+batch_size]
+            print(f"   Processing batch {i} to {i+len(batch)}...")
+            
+            for obs in batch:
+                # Safeguard string lengths to prevent DataError
+                safe_notam = str(obs['notam_id'])[:20]
+                safe_fir = str(obs['fir'])[:4]
+                safe_type = str(obs['obstacle_type'])[:50]
+                
+                db_obj = ObstacleParsed(
+                    notam_id=safe_notam,
+                    fir=safe_fir,
+                    obstacle_type=safe_type,
+                    lat=obs['lat'],
+                    lon=obs['lon'],
+                    min_fl=obs['min_fl'],
+                    max_fl=obs['max_fl'],
+                    radius_nm=obs['radius_nm'],
+                    start_date=obs['start_date'],
+                    end_date=obs['end_date'],
+                    full_text=obs['full_text'],
+                    geom=WKTElement(f"POINT({obs['lon']} {obs['lat']})", srid=4326)
+                )
+                session.add(db_obj)
+            
+            try:
+                await session.commit()
+                count += len(batch)
+            except Exception as e:
+                print(f"❌ Batch failed: {e}")
+                await session.rollback()
         
-        await session.commit()
         print(f"✅ Successfully saved {count} records to Database.")
 
 if __name__ == "__main__":
