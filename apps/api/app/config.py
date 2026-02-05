@@ -29,8 +29,15 @@ class Settings(BaseSettings):
         print(f"   -> os.environ['DATABASE_URL'] present? {bool(raw_url)}", file=sys.stderr)
         
         if raw_url:
-            # Fix scheme for asyncpg
-            url = raw_url.replace("postgresql://", "postgresql+asyncpg://")
+            # Fix scheme for asyncpg. Handle both 'postgres://' and 'postgresql://'
+            # Note: 'postgresql://' contains 'postgres://', so order matters or use specific checks.
+            if raw_url.startswith("postgres://"):
+                url = raw_url.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif raw_url.startswith("postgresql://"):
+                url = raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            else:
+                url = raw_url
+
             # Mask for logs
             safe_url = url
             if "@" in safe_url:
