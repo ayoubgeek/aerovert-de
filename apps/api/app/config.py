@@ -20,17 +20,28 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
-        # --- DEBUG LOGGING (FORCE FLUSH) ---
+        # --- DEBUG LOGGING ---
         print(f"🔍 DEBUG: Config Loading...", file=sys.stderr)
-        print(f"   -> DB_URL Key Exists: {'DATABASE_URL' in os.environ}", file=sys.stderr)
-        print(f"   -> DB_URL Value (Raw): {os.environ.get('DATABASE_URL', 'NOT_SET')[:15]}...", file=sys.stderr)
         
-        if self.DATABASE_URL:
+        # 1. Explicitly check os.environ to bypass Pydantic issues
+        raw_url = os.environ.get("DATABASE_URL")
+        
+        print(f"   -> os.environ['DATABASE_URL'] present? {bool(raw_url)}", file=sys.stderr)
+        
+        if raw_url:
             # Fix scheme for asyncpg
-            url = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-            print(f"   -> Using DATABASE_URL: {url[:20]}...", file=sys.stderr)
+            url = raw_url.replace("postgresql://", "postgresql+asyncpg://")
+            # Mask for logs
+            safe_url = url
+            if "@" in safe_url:
+                 try:
+                    part1 = safe_url.split("@")[1]
+                    safe_url = "postgresql+asyncpg://****@" + part1
+                 except: pass
+            print(f"   -> Using DATABASE_URL (Explicit): {safe_url}", file=sys.stderr)
             return PostgresDsn(url)
 
+        # 2. Fallback
         print(f"   -> FALLBACK to host: {self.POSTGRES_SERVER}", file=sys.stderr)
         return PostgresDsn.build(
             scheme="postgresql+asyncpg",
