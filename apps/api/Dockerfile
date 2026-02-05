@@ -31,4 +31,4 @@ COPY . .
 
 # 7. Command (Run Migrations + Seed Data (if empty) + Start Server)
 # We use shell form to allow variable expansion of 
-CMD ["sh", "-c", "echo \"[SHELL-DEBUG] DATABASE_URL IS: $DATABASE_URL\"; alembic upgrade head && python -m app.scripts.ingest_expert && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "echo \"[SHELL-DEBUG] DATABASE_URL IS: $DATABASE_URL\"; python -m app.scripts.enable_postgis && alembic upgrade head && python -m app.scripts.ingest_expert && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
