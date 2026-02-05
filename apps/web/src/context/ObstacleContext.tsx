@@ -34,61 +34,65 @@ export interface StatsData {
   vertical: Record<string, number>;
 }
 
-interface ObstacleContextType {
-  // Data
+// --- Context Definition ---
+
+// Data Context (Stable): holds heavy API responses
+interface ObstacleDataContextType {
   data: ObstacleCollection | null;
-  filteredData: ObstacleCollection | null;
   stats: StatsData | null;
   loading: boolean;
-  
-  // Analytics Metrics
+}
+
+// Filter Context (Volatile): holds UI state and derived filtered data
+interface ObstacleFilterContextType {
+  filteredData: ObstacleCollection | null;
   avgCeiling: number;
-  
-  // Filter State
+
+  // Filters
   minHeight: number;
   setMinHeight: (h: number) => void;
   maxHeight: number;
   setMaxHeight: (h: number) => void;
-  
+
   activeTypes: string[];
   toggleType: (t: string) => void;
-  
+
   searchTerm: string;
   setSearchTerm: (s: string) => void;
-  
+
   showUnlitOnly: boolean;
   setShowUnlitOnly: (v: boolean) => void;
 
-  // --- NEW: Region Filter ---
-  regionFilter: string; // 'ALL', 'EDWW', 'EDGG', 'EDMM'
+  regionFilter: string;
   setRegionFilter: (r: string) => void;
 }
 
-const ObstacleContext = createContext<ObstacleContextType | undefined>(undefined);
+const ObstacleDataContext = createContext<ObstacleDataContextType | undefined>(undefined);
+const ObstacleFilterContext = createContext<ObstacleFilterContextType | undefined>(undefined);
 
 export function ObstacleProvider({ children }: { children: ReactNode }) {
-  // --- State ---
+  // --- Data State ---
   const [data, setData] = useState<ObstacleCollection | null>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Filters
-  const [minHeight, setMinHeight] = useState(0); 
-  const [maxHeight, setMaxHeight] = useState(50000); 
-  
+  // --- Filter State ---
+  const [minHeight, setMinHeight] = useState(0);
+  const [maxHeight, setMaxHeight] = useState(50000);
   const [activeTypes, setActiveTypes] = useState<string[]>([
-    'WIND TURBINE', 'CRANE', 'MAST', 'LIGHTS' 
+    'WIND TURBINE', 'CRANE', 'MAST', 'LIGHTS'
   ]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showUnlitOnly, setShowUnlitOnly] = useState(false); 
-  const [regionFilter, setRegionFilter] = useState("ALL"); // <--- NEW
+  const [showUnlitOnly, setShowUnlitOnly] = useState(false);
+  const [regionFilter, setRegionFilter] = useState("ALL");
 
   // --- 1. Data Fetching ---
   useEffect(() => {
     async function fetchData() {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        
+
+        // TODO: Implement SWR or React Query for caching and revalidation
         const [obsRes, statsRes] = await Promise.all([
           fetch(`${apiUrl}/obstacles`),
           fetch(`${apiUrl}/stats`)
@@ -108,57 +112,67 @@ export function ObstacleProvider({ children }: { children: ReactNode }) {
     fetchData();
   }, []);
 
-  // --- 2. Filtering Engine ---
+  // --- 2. Filtering Logic ---
   const filteredData = useMemo(() => {
     if (!data) return null;
 
     const filteredFeatures = data.features.filter(feature => {
-      // A. STRICT DATA HYGIENE
-      const radius = feature.properties.radius || 0;
-      const type = feature.properties.type;
-      const fir = (feature.properties.fir || "UNK").toUpperCase();
+      // PERF: Cache property access to avoid repeatable read overhead
+      const p = feature.properties;
+      const type = p.type;
 
-      if (radius > 1.5) return false; 
+      // Sanity checks: exclude invalid or ghost data
+      const radius = p.radius || 0;
+      if (radius > 1.5) return false;
       if (type === 'UNKNOWN') return false;
 
-      // B. User Controls
-      
-      // 1. Region Filter (NEW)
-      if (regionFilter !== 'ALL' && fir !== regionFilter) return false;
+      // Filter Pipeline: ordered by compute cost (cheapest -> most expensive)
 
-      // 2. Height Range
-      const heightFt = (feature.properties.max_fl || 0) * 100;
-      const matchesHeight = heightFt >= minHeight && heightFt <= maxHeight;
+      // 1. Region String Match
+      if (regionFilter !== 'ALL') {
+        const fir = (p.fir || "UNK").toUpperCase();
+        if (fir !== regionFilter) return false;
+      }
 
-      // 3. Type Filter
-      const matchesType = activeTypes.includes(type);
+      // 2. Type Inclusion (O(1) lookup)
+      if (!activeTypes.includes(type)) return false;
 
-      // 4. Search Filter
-      const searchLower = searchTerm.toLowerCase();
-      const text = (feature.properties.text || "").toLowerCase();
-      const id = (feature.properties.id || "").toLowerCase();
-      const firLower = fir.toLowerCase();
-      
-      const matchesSearch = 
-        text.includes(searchLower) || 
-        id.includes(searchLower) ||
-        firLower.includes(searchLower);
+      // 3. Numeric Range
+      const heightFt = (p.max_fl || 0) * 100;
+      if (heightFt < minHeight || heightFt > maxHeight) return false;
 
-      // 5. Unlit Filter
-      const matchesUnlit = showUnlitOnly 
-        ? (text.includes('unlit') || text.includes('lgt out') || text.includes('out of service'))
-        : true;
+      // 4. Boolean/Substring Check (Unlit)
+      if (showUnlitOnly) {
+        const text = (p.text || "");
+        // Note: checking subsets helps avoid expensive lowercase() on full strings
+        if (!text.includes('unlit') && !text.includes('lgt out') && !text.includes('out of service')) {
+          return false;
+        }
+      }
 
-      return matchesHeight && matchesType && matchesSearch && matchesUnlit;
+      // 5. Full Text Search (Most expensive)
+      if (searchTerm) {
+        // TODO: Move this to a web worker if dataset exceeds 10k items
+        const searchLower = searchTerm.toLowerCase();
+        const text = (p.text || '').toLowerCase();
+        const id = (p.id || '').toLowerCase();
+        const fir = (p.fir || '').toLowerCase();
+
+        if (!text.includes(searchLower) && !id.includes(searchLower) && !fir.includes(searchLower)) {
+          return false;
+        }
+      }
+
+      return true;
     });
 
     return {
       ...data,
       features: filteredFeatures
     };
-  }, [data, minHeight, maxHeight, activeTypes, searchTerm, showUnlitOnly, regionFilter]); 
+  }, [data, minHeight, maxHeight, activeTypes, searchTerm, showUnlitOnly, regionFilter]);
 
-  // --- 3. Dynamic Analytics ---
+  // --- 3. Analytics ---
   const avgCeiling = useMemo(() => {
     if (!filteredData || filteredData.features.length === 0) return 0;
     const totalFL = filteredData.features.reduce((sum, f) => sum + (f.properties.max_fl || 0), 0);
@@ -167,42 +181,69 @@ export function ObstacleProvider({ children }: { children: ReactNode }) {
 
   // --- 4. Handlers ---
   const toggleType = (typeId: string) => {
-    setActiveTypes(prev => 
-      prev.includes(typeId) 
+    setActiveTypes(prev =>
+      prev.includes(typeId)
         ? prev.filter(t => t !== typeId)
         : [...prev, typeId]
     );
   };
 
+  // --- 5. Context Providers ---
+
+  // Stable Data Bundle (updates rarely)
+  const dataValue = useMemo(() => ({
+    data,
+    stats,
+    loading
+  }), [data, stats, loading]);
+
+  // Volatile Filter Bundle (updates frequently)
+  const filterValue = useMemo(() => ({
+    filteredData,
+    avgCeiling,
+    minHeight, setMinHeight,
+    maxHeight, setMaxHeight,
+    activeTypes, toggleType,
+    searchTerm, setSearchTerm,
+    showUnlitOnly, setShowUnlitOnly,
+    regionFilter, setRegionFilter
+  }), [
+    filteredData, avgCeiling,
+    minHeight, maxHeight, activeTypes, searchTerm, showUnlitOnly, regionFilter
+  ]);
+
   return (
-    <ObstacleContext.Provider value={{
-      data,
-      filteredData,
-      stats,
-      loading,
-      avgCeiling,
-      minHeight,
-      setMinHeight,
-      maxHeight,
-      setMaxHeight,
-      activeTypes,
-      toggleType,
-      searchTerm,
-      setSearchTerm,
-      showUnlitOnly,
-      setShowUnlitOnly,
-      regionFilter,       // <--- EXPOSED
-      setRegionFilter     // <--- EXPOSED
-    }}>
-      {children}
-    </ObstacleContext.Provider>
+    <ObstacleDataContext.Provider value={dataValue}>
+      <ObstacleFilterContext.Provider value={filterValue}>
+        {children}
+      </ObstacleFilterContext.Provider>
+    </ObstacleDataContext.Provider>
   );
 }
 
-export function useObstacles() {
-  const context = useContext(ObstacleContext);
-  if (context === undefined) {
-    throw new Error('useObstacles must be used within an ObstacleProvider');
-  }
+// --- Hooks ---
+
+export function useObstacleData() {
+  const context = useContext(ObstacleDataContext);
+  if (context === undefined) throw new Error('useObstacleData must be used within ObstacleProvider');
   return context;
+}
+
+export function useObstacleFilters() {
+  const context = useContext(ObstacleFilterContext);
+  if (context === undefined) throw new Error('useObstacleFilters must be used within ObstacleProvider');
+  return context;
+}
+
+/**
+ * @deprecated Use useObstacleData (stable) or useObstacleFilters (volatile) instead.
+ */
+export function useObstacles() {
+  const dataCtx = useObstacleData();
+  const filterCtx = useObstacleFilters();
+
+  return {
+    ...dataCtx,
+    ...filterCtx
+  };
 }

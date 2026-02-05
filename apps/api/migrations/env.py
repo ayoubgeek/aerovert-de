@@ -11,7 +11,7 @@ from alembic import context
 from app.config import settings
 from app.db.base import Base
 # Must import models here so they attach to Base.metadata
-from app.db.models import NotamRaw, ObstacleParsed  # noqa
+from app.db.models import ObstacleParsed  # noqa
 
 # this is the Alembic Config object
 config = context.config

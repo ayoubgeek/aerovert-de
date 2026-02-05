@@ -10,7 +10,7 @@ const config: Config = {
     extend: {},
   },
 plugins: [
-    require("tailwindcss-animate"), // <--- ADD THIS
+    require("tailwindcss-animate"),
   ],
 };
 export default config;
