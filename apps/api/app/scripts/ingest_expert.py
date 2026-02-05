@@ -16,7 +16,7 @@ from app.db.models import Base, ObstacleParsed
 from app.config import settings
 
 # --- CONFIGURATION ---
-DB_URL = f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_SERVER}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+DB_URL = str(settings.SQLALCHEMY_DATABASE_URI)
 DATA_ROOT = "/app/data/raw/2025"
 
 # --- HELPER FUNCTIONS ---
