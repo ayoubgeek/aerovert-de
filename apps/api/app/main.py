@@ -46,16 +46,13 @@ async def get_obstacles(db: AsyncSession = Depends(get_db)):
     
     for i, obs in enumerate(obstacles):
         try:
-            if obs.geom is None:
-                continue
-
-            point = to_shape(obs.geom)
+            # point = to_shape(obs.geom)
             
             features.append({
                 "type": "Feature",
                 "geometry": {
                     "type": "Point",
-                    "coordinates": [point.x, point.y]
+                    "coordinates": [obs.lon, obs.lat]
                 },
                 "properties": {
                     "id": obs.notam_id,
