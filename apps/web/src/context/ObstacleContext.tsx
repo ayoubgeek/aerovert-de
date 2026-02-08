@@ -143,7 +143,7 @@ export function ObstacleProvider({ children }: { children: ReactNode }) {
 
       // 4. Boolean/Substring Check (Unlit)
       if (showUnlitOnly) {
-        const text = (p.text || "");
+        const text = (p.text || "").toLowerCase();
         // Note: checking subsets helps avoid expensive lowercase() on full strings
         if (!text.includes('unlit') && !text.includes('lgt out') && !text.includes('out of service')) {
           return false;
